@@ -47,7 +47,7 @@ pre_check()
     return 1
   fi
 
-  if ! lspci | grep -i NVIDIA | grep -qe '3D controller'; then
+  if ! lspci | grep -i NVIDIA | grep -qe '3D controller' -e 'VGA compatible controller'; then
     echo "NVIDIA Card not found"
     return 1
   fi
