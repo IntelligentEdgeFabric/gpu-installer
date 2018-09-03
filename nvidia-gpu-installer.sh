@@ -14,6 +14,7 @@ NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
 
 NVIDIA_DRIVER_DOWNLOAD_URL_DEFAULT="https://us.download.nvidia.com/tesla/${NVIDIA_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DRIVER_VERSION}.run"
 NVIDIA_DRIVER_DOWNLOAD_URL="${NVIDIA_DRIVER_DOWNLOAD_URL:-$NVIDIA_DRIVER_DOWNLOAD_URL_DEFAULT}"
+NVIDIA_INSTALLER_RUNFILE="$(basename "${NVIDIA_DRIVER_DOWNLOAD_URL}")"
 
 
 get_url()
@@ -148,11 +149,8 @@ set -u
 
 set -x
 NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
-NVIDIA_DRIVER_DOWNLOAD_URL_DEFAULT="https://us.download.nvidia.com/tesla/${NVIDIA_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DRIVER_VERSION}.run"
-NVIDIA_DRIVER_DOWNLOAD_URL="${NVIDIA_DRIVER_DOWNLOAD_URL:-$NVIDIA_DRIVER_DOWNLOAD_URL_DEFAULT}"
 NVIDIA_INSTALL_DIR_HOST="${NVIDIA_INSTALL_DIR_HOST:-/var/IEF/nvidia}"
 NVIDIA_INSTALL_DIR_CONTAINER="${NVIDIA_INSTALL_DIR_CONTAINER:-/var/IEF/nvidia}"
-NVIDIA_INSTALLER_RUNFILE="$(basename "${NVIDIA_DRIVER_DOWNLOAD_URL}")"
 ROOT_MOUNT_DIR="${ROOT_MOUNT_DIR:-/root}"
 CACHE_FILE="${NVIDIA_INSTALL_DIR_CONTAINER}/.cache"
 KERNEL_VERSION="$(uname -r)"
@@ -243,16 +241,6 @@ configure_nvidia_installation_dirs() {
 
   popd
   echo "Configuring installation directories... DONE."
-}
-
-download_nvidia_installer() {
-  echo "Downloading Nvidia installer..."
-  pushd "${NVIDIA_INSTALL_DIR_CONTAINER}"
-  if [ ! -f "${NVIDIA_INSTALLER_RUNFILE}" ]; then
-    curl -L -S -f "${NVIDIA_DRIVER_DOWNLOAD_URL}" -o "${NVIDIA_INSTALLER_RUNFILE}"
-  fi
-  popd
-  echo "Downloading Nvidia installer... DONE."
 }
 
 run_nvidia_installer() {
@@ -354,7 +342,6 @@ main() {
   else
     download_kernel_src
     configure_nvidia_installation_dirs
-    download_nvidia_installer
     run_nvidia_installer
     update_cached_version
     verify_nvidia_installation
@@ -365,7 +352,8 @@ main() {
 
 main "$@"
 
-EOL)
+EOL
+)
 
   for t in download_kernel installer_extra_args; do
     pat="{{"$t"}}"
@@ -381,10 +369,24 @@ get_release()
   eval "$(sed 's/^[A-Za-z]/OS_&/' /etc/os-release)"
 }
 
+download_nvidia_installer() {
+  # TODO: checksum in case installer broken
+  pushd "${NVIDIA_DIR}"
+  if [ ! -f "${NVIDIA_INSTALLER_RUNFILE}" ]; then
+    echo "Downloading Nvidia installer..."
+    curl -L -S -f "${NVIDIA_DRIVER_DOWNLOAD_URL}" -o "${NVIDIA_INSTALLER_RUNFILE}"
+    echo "Downloading Nvidia installer... DONE."
+  else
+    echo "Nvidia installer cached in ${PWD}/${NVIDIA_INSTALLER_RUNFILE}"
+  fi
+  popd
+}
+
 pre_run()
 {
-    # Note: this also load ipmi_msghandler
-    modprobe ipmi_devintf 2>/dev/null || true
+  # Note: this also load ipmi_msghandler
+  modprobe ipmi_devintf 2>/dev/null || true
+  download_nvidia_installer
 }
 
 run_installer()
@@ -400,7 +402,6 @@ run_installer()
   [ -n "${http_proxy:-}" ] && extra_args="$extra_args -e http_proxy=$http_proxy"
   [ -n "${https_proxy:-}" ] && extra_args="$extra_args -e https_proxy=$https_proxy"
 
-
   # TODO: find the most proper nvidia-driver version
   docker run --rm -it --privileged --net=host -v /dev:/dev \
     -v $NVIDIA_DIR:$NVIDIA_DIR -v /:/root \
@@ -408,7 +409,7 @@ run_installer()
     -e NVIDIA_INSTALL_DIR_CONTAINER=$NVIDIA_DIR \
     -e ROOT_MOUNT_DIR=/root \
     -e NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION} \
-    -e NVIDIA_DRIVER_DOWNLOAD_URL=${NVIDIA_DRIVER_DOWNLOAD_URL} \
+    -e NVIDIA_INSTALLER_RUNFILE=${NVIDIA_INSTALLER_RUNFILE} \
     $extra_args \
     $image_name
 }
