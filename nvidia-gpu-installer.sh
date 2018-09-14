@@ -315,7 +315,7 @@ copy_binaries()
   # the drawback of this method is that error mesage would contain the wrapped path
   for f in nvidia-*; do
     mv $f wrapped_$f
-    echo -e "#!/bin/sh\nLD_LIBRARY_PATH=${NVIDIA_INSTALL_DIR_HOST}/lib64 ${NVIDIA_INSTALL_DIR_HOST}/bin/wrapped_$f" > $f
+    echo -e '#!/bin/sh\ncd $(dirname "$0")/..\nLD_LIBRARY_PATH=lib64 bin/'"wrapped_$f" > $f
     chmod +x $f
   done
 }
@@ -364,8 +364,8 @@ main() {
     install_devel
     configure_nvidia_installation_dirs
     run_nvidia_installer
-    update_cached_version
     copy_binaries
+    update_cached_version
   fi
   verify_nvidia_installation
 }
