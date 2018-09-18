@@ -408,16 +408,14 @@ install_drivers_loader_service()
 #!/bin/bash
 cd "$(dirname $0)/drivers"
 modprobe ipmi_devintf 2>/dev/null || true
-insmod nvidia.ko
-if [ "$?" -eq 0 ]; then
+
+if insmod nvidia.ko; then
   # Count the number of NVIDIA controllers found.
   N=`lspci | grep -i NVIDIA | grep -e '3D controller' -e 'VGA compatible controller' | wc -l`
   for((i=0;i<N;i++)); do
     mknod -m 666 /dev/nvidia$i c 195 $i
   done
   mknod -m 666 /dev/nvidiactl c 195 255
-  else
-  exit 1
 fi
 insmod nvidia-uvm.ko && mknod -m 666 /dev/nvidia-uvm c $(awk '/nvidia-uvm/&&$0=$1' /proc/devices) 0 || exit 1
 EOF
@@ -442,6 +440,8 @@ WantedBy=sysinit.target
 EOF
 
   systemctl enable nvidia-drivers-loader.service
+  # try to insmod the drivers anyway, ignore any error
+  systemctl start nvidia-drivers-loader.service 2>/dev/null|| true
 }
 
 
