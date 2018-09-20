@@ -40,3 +40,17 @@ bash nvidia-gpu-installer.sh clean
 ```
 
 
+## FAQ
+1. How to check gpu drivers are installed successfully
+```sh
+# check that nvidia/nvidia-uvm ko are loaded
+lsmod |grep -e nvidia -e nvidia-uvm
+
+# check that device files are created
+ls /dev/nvidiactl /dev/nvidia-uvm /dev/nvidia?
+
+# check by nvidia-smi
+/var/IEF/nvidia/bin/nvidia-smi
+
+```
+
