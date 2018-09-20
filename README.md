@@ -41,7 +41,7 @@ bash nvidia-gpu-installer.sh clean
 
 
 ## FAQ
-1. How to check gpu drivers are installed successfully
+1. How to check gpu drivers are installed successfully?
 ```sh
 # check that nvidia/nvidia-uvm ko are loaded
 lsmod |grep -e nvidia -e nvidia-uvm
@@ -54,3 +54,11 @@ ls /dev/nvidiactl /dev/nvidia-uvm /dev/nvidia?
 
 ```
 
+2. After reboot, gpu drivers are not loaded?
+```sh
+# check the loader script status
+systemctl status nvidia-drivers-loader
+if : found "Invalid module format"; then
+  echo "your kernel version may change since last installation time, please switch to the old kernel version!!"
+fi
+```
