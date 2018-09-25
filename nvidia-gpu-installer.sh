@@ -170,18 +170,30 @@ installer_extra_args_ubuntu()
 install_devel_centos()
 {
 
-  echo "yum update -y && yum install gcc make curl -y"
-   # TODO: report error when kernel-devel version does not match current kernel version
   echo '
-   if [ ! -d {ROOT_MOUNT_DIR}/usr/src/kernels/$KERNEL_VERSION ] ; then
+   kernel_dir=/usr/src/kernels/$KERNEL_VERSION
+   if [ ! -d ${ROOT_MOUNT_DIR}$kernel_dir ] ; then
       yum update -y && yum install -y kernel-devel kernel-headers
+      if [ ! -d $kernel_dir ] ; then
+          # ln -s $(ls /usr/src/kernels | head -n1) $kernel_dir
+          echo "kernel development not found for $KERNEL_VERSION"
+          echo "RUN this command below to upgrade your kernel:"
+          echo "   yum update -y && yum install -y kernel-devel kernel-headers"
+          echo "And then reboot!"
+          exit 1
+      fi
+   else
+      mkdir -p /usr/src/kernels
+      echo "symbolic link $kernel_dir to ${ROOT_MOUNT_DIR}$kernel_dir"
+      ln -s ${ROOT_MOUNT_DIR}$kernel_dir $kernel_dir
    fi
    '
+   echo "yum update -y && yum install gcc make curl -y"
 }
 
 installer_extra_args_centos()
 {
-    echo '--kernel-source-path ${ROOT_MOUNT_DIR}/usr/src/kernels/$KERNEL_VERSION'
+    echo '--kernel-source-path /usr/src/kernels/$KERNEL_VERSION'
 }
 
 gen_entrypoint()
