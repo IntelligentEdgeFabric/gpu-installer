@@ -327,7 +327,7 @@ copy_binaries()
   # the drawback of this method is that error mesage would contain the wrapped path
   for f in nvidia-*; do
     mv $f wrapped_$f
-    echo -e '#!/bin/sh\ncd $(dirname "$0")/..\nLD_LIBRARY_PATH=lib64 bin/'"wrapped_$f" > $f
+    echo -e '#!/bin/sh\ncd $(dirname "$0")/..\nLD_LIBRARY_PATH=lib64 bin/'"wrapped_$f" '"$@"' > $f
     chmod +x $f
   done
 }
