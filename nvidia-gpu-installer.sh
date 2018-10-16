@@ -69,7 +69,7 @@ download_nvidia_installer()
   # TODO: verify installer file integrity
   if [ ! -f "${savefile}" ]; then
     echo "Downloading Nvidia installer..."
-    curl -L -S -f "${url}" -o "${savefile}"
+    curl -L -S -f "${url}" -o "${savefile}" || return 1
     echo "Downloading Nvidia installer... DONE."
   else
     echo "Nvidia installer cached in ${PWD}/${savefile}"
@@ -155,15 +155,18 @@ clean()
 
 install_devel_ubuntu()
 {
-    echo "apt-get update && \
-    apt-get install -y kmod gcc make && \
-    rm -rf /var/lib/apt/lists/*"
-    echo "apt-get update && apt-get install -y linux-headers-${KERNEL_VERSION}"
+  echo 'apt-get update
+  apt-get install -y kmod
+  apt-get install -y gcc
+  apt-get install -y make
+  rm -rf /var/lib/apt/lists/*
+  apt-get update
+  apt-get install -y linux-headers-${KERNEL_VERSION}'
 }
 
 installer_extra_args_ubuntu()
 {
-    echo ""
+  echo ""
 }
 
 
@@ -173,7 +176,8 @@ install_devel_centos()
   echo '
    kernel_dir=/usr/src/kernels/$KERNEL_VERSION
    if [ ! -d ${ROOT_MOUNT_DIR}$kernel_dir ] ; then
-      yum update -y && yum install -y kernel-devel kernel-headers
+      yum update -y
+      yum install -y kernel-devel kernel-headers
       if [ ! -d $kernel_dir ] ; then
           # ln -s $(ls /usr/src/kernels | head -n1) $kernel_dir
           echo "kernel development not found for $KERNEL_VERSION"
@@ -187,13 +191,14 @@ install_devel_centos()
       echo "symbolic link $kernel_dir to ${ROOT_MOUNT_DIR}$kernel_dir"
       ln -s ${ROOT_MOUNT_DIR}$kernel_dir $kernel_dir
    fi
-   '
-   echo "yum update -y && yum install gcc make -y"
+   yum update -y
+   yum install gcc  -y
+   yum install make -y'
 }
 
 installer_extra_args_centos()
 {
-    echo '--kernel-source-path /usr/src/kernels/$KERNEL_VERSION'
+  echo '--kernel-source-path /usr/src/kernels/$KERNEL_VERSION'
 }
 
 gen_entrypoint()
@@ -409,8 +414,6 @@ COPY $entrypoint /$entrypoint
 CMD /$entrypoint
 EOF
   docker build -t "$1" .
-  # clean up build image
-  trap "docker rmi '$1' >/dev/null 2>&1" EXIT
   popd
 }
 
@@ -471,10 +474,8 @@ post_run()
 
 run_installer()
 {
-  pre_run
+  pre_run || return 1
   image_name=ief/nvidia-driver-installer:latest
-
-  build_image $image_name
 
   # build extra args
   extra_args=""
@@ -485,15 +486,34 @@ run_installer()
   run_cmd=""
   [ -n "${__DEBUG__:-}" ] && run_cmd="-c /entrypoint.sh||/bin/bash&&false"
 
-  docker run --rm -it --privileged --net=host -v /dev:/dev \
-    -v $NVIDIA_INSTALL_DIR:$NVIDIA_INSTALL_DIR -v /:/root \
-    -e NVIDIA_INSTALL_DIR_HOST=$NVIDIA_INSTALL_DIR \
-    -e NVIDIA_INSTALL_DIR_CONTAINER=$NVIDIA_INSTALL_DIR \
-    -e ROOT_MOUNT_DIR=/root \
-    -e NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION} \
-    -e NVIDIA_INSTALLER_RUNFILE=${NVIDIA_INSTALLER_RUNFILE} \
-    $extra_args \
-    $image_name $run_cmd && post_run
+  {
+    container_id=$(docker ps -a | awk -v image=$image_name 'NF=$2==image')
+    if [ -n "$container_id" ]; then
+      echo "Using already existing installer container $container_id"
+      docker start --attach "$container_id"
+    else
+      build_image $image_name
+
+      docker run -it --privileged --net=host -v /dev:/dev \
+        --name nvidia-driver-installer \
+        -v $NVIDIA_INSTALL_DIR:$NVIDIA_INSTALL_DIR -v /:/root \
+        -e NVIDIA_INSTALL_DIR_HOST=$NVIDIA_INSTALL_DIR \
+        -e NVIDIA_INSTALL_DIR_CONTAINER=$NVIDIA_INSTALL_DIR \
+        -e ROOT_MOUNT_DIR=/root \
+        -e NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION} \
+        -e NVIDIA_INSTALLER_RUNFILE=${NVIDIA_INSTALLER_RUNFILE} \
+        $extra_args \
+        $image_name $run_cmd
+    fi
+  } && post_run
+  ok=$?
+  if [ $ok -eq 0 ]; then
+    echo "clean the intermediate container/image"
+    docker rm $(docker ps -a | awk -v image=$image_name 'NF=$2==image')
+    docker rmi $image_name
+  fi
+  return $ok
+
 }
 
 post_check()
