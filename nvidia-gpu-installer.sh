@@ -13,9 +13,6 @@ cd "$NVIDIA_INSTALL_DIR"
 # TODO: find the most proper nvidia-driver version
 NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
 
-NVIDIA_DRIVER_DOWNLOAD_URL_DEFAULT="https://us.download.nvidia.com/tesla/${NVIDIA_DRIVER_VERSION}/NVIDIA-Linux-x86_64-${NVIDIA_DRIVER_VERSION}.run"
-NVIDIA_DRIVER_DOWNLOAD_URL="${NVIDIA_DRIVER_DOWNLOAD_URL:-$NVIDIA_DRIVER_DOWNLOAD_URL_DEFAULT}"
-NVIDIA_INSTALLER_RUNFILE="$(basename "${NVIDIA_DRIVER_DOWNLOAD_URL}")"
 
 get_release()
 {
@@ -56,9 +53,24 @@ parse_args()
   esac
 }
 
-get_url()
+_download_url_ok()
 {
-  echo "${NVIDIA_DRIVER_DOWNLOAD_URL//$NVIDIA_DRIVER_VERSION/$1}"
+  curl --silent --head "$1" | awk 'NR==1&&/^HTTP/{a=$2<400}END{exit(1-a)}'
+}
+
+get_download_url()
+{
+  # found the downloadable url
+  for url in "http://us.download.nvidia.com/XFree86/Linux-x86_64/@/NVIDIA-Linux-x86_64-@.run" \
+      "https://us.download.nvidia.com/tesla/@/NVIDIA-Linux-x86_64-@.run";  do
+    url=${url//@/$1}
+    if _download_url_ok "$url"; then
+      # found good url
+      echo "$url"
+      break
+    fi
+  done
+
 }
 
 download_nvidia_installer()
@@ -68,6 +80,10 @@ download_nvidia_installer()
   savefile="${2:-$NVIDIA_INSTALLER_RUNFILE}"
   # TODO: verify installer file integrity
   if [ ! -f "${savefile}" ]; then
+    if [ -z "$url" ]; then
+      echo "Can't found the downloadable url, you need to specify the NVIDIA_DRIVER_DOWNLOAD_URL"
+      usage 1
+    fi
     echo "Downloading Nvidia installer..."
     curl -L -S -f "${url}" -o "${savefile}" || return 1
     echo "Downloading Nvidia installer... DONE."
@@ -115,7 +131,7 @@ uninstall_drivers()
       echo "Abort!"
       return 1
     fi
-    url="$(get_url $version)"
+    url="$(get_download_url $version)"
     installer_file=$(basename "${url}")
     download_nvidia_installer "$url" "$installer_file"
     bash "$installer_file" \
@@ -152,7 +168,6 @@ clean()
   echo "cleanup ... DONE."
 }
 
-
 install_devel_ubuntu()
 {
   echo 'apt-get update
@@ -168,7 +183,6 @@ installer_extra_args_ubuntu()
 {
   echo ""
 }
-
 
 install_devel_centos()
 {
@@ -464,6 +478,8 @@ pre_run()
 {
   # Note: this also load ipmi_msghandler
   modprobe ipmi_devintf 2>/dev/null || true
+  NVIDIA_DRIVER_DOWNLOAD_URL="${NVIDIA_DRIVER_DOWNLOAD_URL:-$(get_download_url $NVIDIA_DRIVER_VERSION)}"
+  NVIDIA_INSTALLER_RUNFILE="$(basename "${NVIDIA_DRIVER_DOWNLOAD_URL}")"
   download_nvidia_installer
 }
 
@@ -551,6 +567,7 @@ usage()
   echo "   -h|help: remove all installed drivers and scripts"
   exit ${1:-1}
 }
+
 
 # default cmd is install
 [ $# -eq 0 ] && set install
