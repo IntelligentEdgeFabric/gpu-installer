@@ -10,8 +10,9 @@ But add features/fix issues below:
 
 ### requirements
 1. nvidia gpu card inserted
-2. docker service already started
+2. docker installed/started and can pull image
 3. by now centos 7.X and ubuntu 16.04+ are supported
+4. network is reachable
 ### run
 
 the default install directory is _/var/IEF/nvidia_, don't modify this if you use the IEF service.
