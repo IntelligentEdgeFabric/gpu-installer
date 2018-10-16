@@ -156,7 +156,7 @@ clean()
 install_devel_ubuntu()
 {
     echo "apt-get update && \
-    apt-get install -y kmod gcc make curl && \
+    apt-get install -y kmod gcc make && \
     rm -rf /var/lib/apt/lists/*"
     echo "apt-get update && apt-get install -y linux-headers-${KERNEL_VERSION}"
 }
@@ -188,7 +188,7 @@ install_devel_centos()
       ln -s ${ROOT_MOUNT_DIR}$kernel_dir $kernel_dir
    fi
    '
-   echo "yum update -y && yum install gcc make curl -y"
+   echo "yum update -y && yum install gcc make -y"
 }
 
 installer_extra_args_centos()
