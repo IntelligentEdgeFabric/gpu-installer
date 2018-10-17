@@ -365,38 +365,14 @@ run_nvidia_installer() {
   echo "Running Nvidia installer... DONE."
 }
 
-configure_cached_installation() {
-  echo "Configuring cached driver installation..."
-  update_container_ld_cache
-  if ! lsmod | grep -q -w 'nvidia'; then
-    insmod "${NVIDIA_INSTALL_DIR_CONTAINER}/drivers/nvidia.ko"
-  fi
-  if ! lsmod | grep -q -w 'nvidia_uvm'; then
-    insmod "${NVIDIA_INSTALL_DIR_CONTAINER}/drivers/nvidia-uvm.ko"
-  fi
-  echo "Configuring cached driver installation... DONE"
-}
-
-verify_nvidia_installation() {
-  echo "Verifying Nvidia installation..."
-  export PATH="${NVIDIA_INSTALL_DIR_CONTAINER}/bin:${PATH}"
-  nvidia-smi
-  # Create unified memory device file.
-  nvidia-modprobe -c0 -u
-  echo "Verifying Nvidia installation... DONE."
-}
-
 main() {
-  if check_cached_version; then
-    configure_cached_installation
-  else
+  if ! check_cached_version; then
     install_devel
     configure_nvidia_installation_dirs
     run_nvidia_installer
     copy_binaries
     update_cached_version
   fi
-  verify_nvidia_installation
 }
 
 main "$@"
@@ -468,7 +444,7 @@ EOF
 
   systemctl enable nvidia-drivers-loader.service
   # try to insmod the drivers anyway, ignore any error
-  systemctl start nvidia-drivers-loader.service 2>/dev/null|| true
+  bash ./nvidia-drivers-loader.sh 2>/dev/null || true
 }
 
 
@@ -532,7 +508,9 @@ run_installer()
 
 post_check()
 {
-  # nvidia installer already run nvidia-smi check
+  echo "Configuring cached driver installation..."
+  $NVIDIA_INSTALL_DIR/bin/nvidia-smi
+  echo "Configuring cached driver installation... DONE"
   return 0
 }
 
