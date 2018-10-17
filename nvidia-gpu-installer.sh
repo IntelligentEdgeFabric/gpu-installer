@@ -174,8 +174,6 @@ install_devel_ubuntu()
   apt-get install -y kmod
   apt-get install -y gcc
   apt-get install -y make
-  rm -rf /var/lib/apt/lists/*
-  apt-get update
   apt-get install -y linux-headers-${KERNEL_VERSION}'
 }
 
