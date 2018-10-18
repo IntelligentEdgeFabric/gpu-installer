@@ -135,7 +135,7 @@ uninstall_drivers()
     installer_file=$(basename "${url}")
     download_nvidia_installer "$url" "$installer_file"
     bash "$installer_file" \
-      --uninstall --no-questions --no-drm --ui=none \
+      --uninstall --no-questions --ui=none \
       --accept-license \
       --log-file-name=/dev/stdout
   fi
@@ -352,13 +352,16 @@ copy_binaries()
 run_nvidia_installer() {
   echo "Running Nvidia installer..."
   pushd "${NVIDIA_INSTALL_DIR_CONTAINER}"
+  # --no-drm is added in version 375.66
+  # see https://www.nvidia.com/Download/driverResults.aspx/118290/en-us
+  no_drm=$(echo "${NVIDIA_DRIVER_VERSION}" | awk '375.66<=$0{print "--no-drm"}')
   sh "${NVIDIA_INSTALLER_RUNFILE}" \
     --utility-prefix="${NVIDIA_INSTALL_DIR_CONTAINER}" \
     --opengl-prefix="${NVIDIA_INSTALL_DIR_CONTAINER}" \
     --no-install-compat32-libs \
     --log-file-name="${NVIDIA_INSTALL_DIR_CONTAINER}/nvidia-installer.log" \
     --silent \
-    --no-drm \
+    $no_drm \
     --accept-license \
     {{installer_extra_args}}
   popd
