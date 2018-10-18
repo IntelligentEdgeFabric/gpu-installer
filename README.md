@@ -38,7 +38,14 @@ NVIDIA_DRIVER_VERSION=396.44 NVIDIA_DRIVER_DOWNLOAD_URL=http://cn.download.nvidi
 # clean drivers
 bash nvidia-gpu-installer.sh clean
 
+
 ```
+
+```sh
+# fix the old wrong installed scripts
+bash nvidia-gpu-installer.sh fix
+```
+
 
 
 ## FAQ

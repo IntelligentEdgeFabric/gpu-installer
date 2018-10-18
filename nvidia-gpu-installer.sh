@@ -529,6 +529,17 @@ install()
   fi
 }
 
+fix()
+{
+  echo "Fix..."
+  # fix binary arguments
+  cd ${NVIDIA_INSTALL_DIR}/bin
+  for f in nvidia-*; do
+    [ -f "$f" ] && sed -i "s/wrapped_$f.*/wrapped_$f"' "$@"/' "$f"
+  done
+  echo "Fix... DONE"
+}
+
 usage()
 {
   echo "Usage: $(basename $0) COMMAND options"
@@ -540,6 +551,7 @@ usage()
   echo "Commands:"
   echo "   install [-y|--yes]: install nvidia drivers"
   echo "   clean [-y|--yes]: remove all installed drivers and scripts"
+  echo "   fix: fix all installed scripts"
   echo "   -h|help: remove all installed drivers and scripts"
   exit ${1:-1}
 }
@@ -553,6 +565,7 @@ shift 1
 
 case "$cmd" in
   install|clean) parse_args "$@"; $cmd; exit $?;;
+  fix) fix ;;
   -h|help) usage 0;;
   *) usage 1;;
 esac
