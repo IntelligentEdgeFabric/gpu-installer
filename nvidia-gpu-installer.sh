@@ -480,7 +480,16 @@ run_installer()
   [ -n "${__DEBUG__:-}" ] && run_cmd="-c /entrypoint.sh||/bin/bash&&false"
 
   {
-    container_id=$(docker ps -a | awk -v image=$image_name 'NF=$2==image')
+    container_id=$(
+      # found already existing container id which also has the same version
+      # meanwhile try to clean the orphaned container
+      docker ps -a | awk -v image=$image_name 'NF=$2==image' | while read _id; do
+         docker inspect "$_id" | grep -q "NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION}" && echo $_id && break
+         # try to rm the orphaned container
+         docker rm $_id >/dev/null 2>&1|| true
+      done
+    )
+
     if [ -n "$container_id" ]; then
       echo "Using already existing installer container $container_id"
       docker start --attach "$container_id"
@@ -488,7 +497,7 @@ run_installer()
       build_image $image_name
 
       docker run -it --privileged --net=host -v /dev:/dev \
-        --name nvidia-driver-installer \
+        --name nvidia-driver-installer-$NVIDIA_DRIVER_VERSION \
         -v $NVIDIA_INSTALL_DIR:$NVIDIA_INSTALL_DIR -v /:/root \
         -e NVIDIA_INSTALL_DIR_HOST=$NVIDIA_INSTALL_DIR \
         -e NVIDIA_INSTALL_DIR_CONTAINER=$NVIDIA_INSTALL_DIR \
