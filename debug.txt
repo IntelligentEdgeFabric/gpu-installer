@@ -1,0 +1,127 @@
+root@ubuntu-gpu-test:~# tree --charset=ascii /var/IEF/nvidia/
+/var/IEF/nvidia/
+|-- bin
+|   |-- nvidia-bug-report.sh
+|   |-- nvidia-cuda-mps-control
+|   |-- nvidia-cuda-mps-server
+|   |-- nvidia-debugdump
+|   |-- nvidia-installer
+|   |-- nvidia-modprobe
+|   |-- nvidia-persistenced
+|   |-- nvidia-settings
+|   |-- nvidia-smi
+|   |-- nvidia-uninstall
+|   |-- nvidia-xconfig
+|   |-- wrapped_nvidia-bug-report.sh
+|   |-- wrapped_nvidia-cuda-mps-control
+|   |-- wrapped_nvidia-cuda-mps-server
+|   |-- wrapped_nvidia-debugdump
+|   |-- wrapped_nvidia-installer
+|   |-- wrapped_nvidia-modprobe
+|   |-- wrapped_nvidia-persistenced
+|   |-- wrapped_nvidia-settings
+|   |-- wrapped_nvidia-smi
+|   |-- wrapped_nvidia-uninstall -> nvidia-installer
+|   `-- wrapped_nvidia-xconfig
+|-- drivers
+|   |-- nvidia.ko
+|   |-- nvidia-modeset.ko
+|   `-- nvidia-uvm.ko
+|-- lib64
+|   |-- libcuda.so -> libcuda.so.1
+|   |-- libcuda.so.1 -> libcuda.so.384.111
+|   |-- libcuda.so.384.111
+|   |-- libEGL_nvidia.so.0 -> libEGL_nvidia.so.384.111
+|   |-- libEGL_nvidia.so.384.111
+|   |-- libEGL.so -> libEGL.so.1
+|   |-- libEGL.so.1
+|   |-- libGLdispatch.so.0
+|   |-- libGLESv1_CM_nvidia.so.1 -> libGLESv1_CM_nvidia.so.384.111
+|   |-- libGLESv1_CM_nvidia.so.384.111
+|   |-- libGLESv1_CM.so -> libGLESv1_CM.so.1
+|   |-- libGLESv1_CM.so.1
+|   |-- libGLESv2_nvidia.so.2 -> libGLESv2_nvidia.so.384.111
+|   |-- libGLESv2_nvidia.so.384.111
+|   |-- libGLESv2.so -> libGLESv2.so.2
+|   |-- libGLESv2.so.2
+|   |-- libGL.la
+|   |-- libGL.so -> libGL.so.1
+|   |-- libGL.so.1 -> libGL.so.1.0.0
+|   |-- libGL.so.1.0.0
+|   |-- libGLX_indirect.so.0 -> libGLX_nvidia.so.384.111
+|   |-- libGLX_nvidia.so.0 -> libGLX_nvidia.so.384.111
+|   |-- libGLX_nvidia.so.384.111
+|   |-- libGLX.so -> libGLX.so.0
+|   |-- libGLX.so.0
+|   |-- libnvcuvid.so -> libnvcuvid.so.1
+|   |-- libnvcuvid.so.1 -> libnvcuvid.so.384.111
+|   |-- libnvcuvid.so.384.111
+|   |-- libnvidia-cfg.so -> libnvidia-cfg.so.1
+|   |-- libnvidia-cfg.so.1 -> libnvidia-cfg.so.384.111
+|   |-- libnvidia-cfg.so.384.111
+|   |-- libnvidia-compiler.so.384.111
+|   |-- libnvidia-eglcore.so.384.111
+|   |-- libnvidia-egl-wayland.so.1 -> libnvidia-egl-wayland.so.1.0.1
+|   |-- libnvidia-egl-wayland.so.1.0.1
+|   |-- libnvidia-encode.so -> libnvidia-encode.so.1
+|   |-- libnvidia-encode.so.1 -> libnvidia-encode.so.384.111
+|   |-- libnvidia-encode.so.384.111
+|   |-- libnvidia-fatbinaryloader.so.384.111
+|   |-- libnvidia-fbc.so -> libnvidia-fbc.so.1
+|   |-- libnvidia-fbc.so.1 -> libnvidia-fbc.so.384.111
+|   |-- libnvidia-fbc.so.384.111
+|   |-- libnvidia-glcore.so.384.111
+|   |-- libnvidia-glsi.so.384.111
+|   |-- libnvidia-gtk2.so.384.111
+|   |-- libnvidia-gtk3.so.384.111
+|   |-- libnvidia-ifr.so -> libnvidia-ifr.so.1
+|   |-- libnvidia-ifr.so.1 -> libnvidia-ifr.so.384.111
+|   |-- libnvidia-ifr.so.384.111
+|   |-- libnvidia-ml.so -> libnvidia-ml.so.1
+|   |-- libnvidia-ml.so.1 -> libnvidia-ml.so.384.111
+|   |-- libnvidia-ml.so.384.111
+|   |-- libnvidia-opencl.so.1 -> libnvidia-opencl.so.384.111
+|   |-- libnvidia-opencl.so.384.111
+|   |-- libnvidia-ptxjitcompiler.so -> libnvidia-ptxjitcompiler.so.1
+|   |-- libnvidia-ptxjitcompiler.so.1 -> libnvidia-ptxjitcompiler.so.384.111
+|   |-- libnvidia-ptxjitcompiler.so.384.111
+|   |-- libnvidia-tls.so.384.111
+|   |-- libOpenCL.so -> libOpenCL.so.1
+|   |-- libOpenCL.so.1 -> libOpenCL.so.1.0
+|   |-- libOpenCL.so.1.0 -> libOpenCL.so.1.0.0
+|   |-- libOpenCL.so.1.0.0
+|   |-- libOpenGL.so -> libOpenGL.so.0
+|   |-- libOpenGL.so.0
+|   |-- libvdpau_nvidia.so -> vdpau/libvdpau_nvidia.so.384.111
+|   |-- tls
+|   |   `-- libnvidia-tls.so.384.111
+|   `-- vdpau
+|       |-- libvdpau_nvidia.so.1 -> libvdpau_nvidia.so.384.111
+|       `-- libvdpau_nvidia.so.384.111
+|-- nvidia-drivers-loader.sh
+|-- nvidia-installer.log
+|-- NVIDIA-Linux-x86_64-384.111.run
+|-- NVIDIA-Linux-x86_64-384.81.run
+`-- share
+    `-- applications
+        `-- nvidia-settings.desktop
+
+7 directories, 98 files
+root@ubuntu-gpu-test:~# /var/IEF/nvidia/bin/nvidia-smi
+Sat Oct 20 12:07:47 2018       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 384.111                Driver Version: 384.111                   |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  Tesla P4            Off  | 00000000:00:0C.0 Off |                    0 |
+| N/A   35C    P0    23W /  75W |      0MiB /  7606MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                       GPU Memory |
+|  GPU       PID   Type   Process name                             Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
