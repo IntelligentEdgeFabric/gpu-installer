@@ -170,7 +170,14 @@ clean()
 
 install_devel_ubuntu()
 {
-  echo 'apt-get update
+  echo '
+  # set apt config when http_proxy is set
+  # see https://github.com/jenkinsci/docker/issues/543
+  env |grep -q "^http_proxy=" && echo "Acquire::http::Pipeline-Depth 0;
+Acquire::http::No-Cache true;
+Acquire::BrokenProxy    true;
+" > /etc/apt/apt.conf.d/99fixbadproxy
+  apt-get update
   apt-get install -y kmod
   apt-get install -y gcc
   apt-get install -y make
