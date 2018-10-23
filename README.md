@@ -10,12 +10,12 @@ But add features/fix issues below:
 
 ### requirements
 1. nvidia gpu card inserted
-2. docker installed/started and can pull image
+2. docker installed/started(refer [centos](https://docs.docker.com/install/linux/docker-ce/centos/)/[ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu/) to get docker) and can pull image(refer [this](https://docs.docker.com/config/daemon/systemd/#httphttps-proxy) for local proxy case)
 3. by now centos 7.X and ubuntu 16.04+ are supported
 4. network is reachable
 ### run
 
-the default install directory is _/var/IEF/nvidia_, don't modify this if you use the IEF service.
+the default install directory is _/var/IEF/nvidia_, don't modify this script if you use the IEF service.
 
 ```sh
 # check usage
@@ -26,19 +26,24 @@ bash nvidia-gpu-installer.sh -h
 # simple run with default version 384.111, default download url https://us.download.nvidia.com/tesla/384.111/NVIDIA-Linux-x86_64-384.111.run
 bash nvidia-gpu-installer.sh install
 
-# try to uninstall existing drivers without asking when installing
+# OR: try to uninstall existing drivers without asking when installing
 bash nvidia-gpu-installer.sh install -y
 
-# run with driver version 396.44, default download url https://us.download.nvidia.com/tesla/396.44/NVIDIA-Linux-x86_64-396.44.run
+# OR: run with driver version 396.44, default download url https://us.download.nvidia.com/tesla/396.44/NVIDIA-Linux-x86_64-396.44.run
 NVIDIA_DRIVER_VERSION=396.44 bash nvidia-gpu-installer.sh install
 
-# run with driver version 396.44 and download url http://cn.download.nvidia.com/tesla/396.44/NVIDIA-Linux-x86_64-396.44.run
+# OR: run with driver version 396.44 and download url http://cn.download.nvidia.com/tesla/396.44/NVIDIA-Linux-x86_64-396.44.run
 NVIDIA_DRIVER_VERSION=396.44 NVIDIA_DRIVER_DOWNLOAD_URL=http://cn.download.nvidia.com/tesla/396.44/NVIDIA-Linux-x86_64-396.44.run bash nvidia-gpu-installer.sh install
+
+# OR: run it under local proxy
+export http_proxy=http://10.90.2.2:808
+export https_proxy=http://10.90.2.2:808
+bash nvidia-gpu-installer.sh install
 ```
 
 
 ```sh
-# clean drivers
+# clean drivers if you don't need it
 bash nvidia-gpu-installer.sh clean
 ```
 
@@ -71,3 +76,6 @@ if : found "Invalid module format"; then
   echo "your kernel version may change since last installation time, please switch to the old kernel version!!"
 fi
 ```
+
+3. APT reported the "E: Failed to fetch ... Hash Sum mismatch" error
+<br>Try to run this script again, it maybe work
