@@ -554,7 +554,11 @@ fix()
   # fix binary arguments
   cd ${NVIDIA_INSTALL_DIR}/bin
   for f in nvidia-*; do
-    [ -f "$f" ] && sed -i "s/wrapped_$f.*/wrapped_$f"' "$@"/' "$f"
+    if [ -f "wrapped_$f" ]; then
+      echo "fix binary arguments for $f"
+      echo -e "#!/bin/sh\nLD_LIBRARY_PATH=${NVIDIA_INSTALL_DIR}/lib64 ${NVIDIA_INSTALL_DIR}/bin/wrapped_$f" '"$@"' > "$f"
+      chmod +x "$f"
+    fi
   done
   echo "Fix... DONE"
 }
