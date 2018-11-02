@@ -18,6 +18,11 @@ But add features/fix issues below:
 the default install directory is _/var/IEF/nvidia_, don't modify this script if you use the IEF service.
 
 ```sh
+# fix the old wrong installed scripts, if wrong output of running nvidia-smi -L
+bash nvidia-gpu-installer.sh fix
+```
+
+```sh
 # check usage
 bash nvidia-gpu-installer.sh -h
 ```
@@ -45,11 +50,6 @@ bash nvidia-gpu-installer.sh install
 ```sh
 # clean drivers if you don't need it
 bash nvidia-gpu-installer.sh clean
-```
-
-```sh
-# fix the old wrong installed scripts
-bash nvidia-gpu-installer.sh fix
 ```
 
 
