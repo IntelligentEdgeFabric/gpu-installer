@@ -438,7 +438,8 @@ EOF
   cat <<-EOF > /etc/systemd/system/nvidia-drivers-loader.service
 [Unit]
 Description=auto loader of nvidia drivers
-Before=local-fs.target
+Before=sysinit.target
+After=systemd-modules-load.service
 DefaultDependencies=no
 Conflicts=shutdown.target
 
@@ -560,6 +561,9 @@ fix()
       chmod +x "$f"
     fi
   done
+
+  echo "fix nvidia-drivers-loader service"
+  sed -i 's/Before=local-fs.*/Before=sysinit.target\nAfter=systemd-modules-load.service/' /etc/systemd/system/nvidia-drivers-loader.service
   echo "Fix... DONE"
 }
 
