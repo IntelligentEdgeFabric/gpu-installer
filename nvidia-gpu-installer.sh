@@ -198,12 +198,18 @@ install_devel_centos()
       yum update -y
       yum install -y kernel-devel kernel-headers
       if [ ! -d $kernel_dir ] ; then
-          # ln -s $(ls /usr/src/kernels | head -n1) $kernel_dir
-          echo "kernel development not found for $KERNEL_VERSION"
-          echo "RUN this command below to upgrade your kernel:"
-          echo "   yum update -y && yum install -y kernel-devel kernel-headers"
-          echo "And then reboot!"
-          exit 1
+          installed_version=$(rpm -q kernel-devel | sed s/kernel-devel-//)
+          echo "kernel development not found for $KERNEL_VERSION, found: $installed_version"
+          if test $(echo $installed_version | cut -d. -f1,2,3) = $(echo $KERNEL_VERSION | cut -d. -f1,2,3); then
+            echo "But the kernel version until the patch number is same."
+            echo "So try to use /usr/src/kernels/$installed_version as the kernel dir anyway."
+            ln -s /usr/src/kernels/$installed_version $kernel_dir
+          else
+            echo "RUN this command below to upgrade your kernel:"
+            echo "   yum update -y && yum install -y kernel-devel kernel-headers"
+            echo "And then reboot!"
+            exit 1
+          fi
       fi
    else
       mkdir -p /usr/src/kernels
