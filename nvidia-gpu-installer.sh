@@ -429,6 +429,7 @@ EOF
 
 install_drivers_loader_service()
 {
+  cd ${NVIDIA_INSTALL_DIR}
   cat <<-"EOF" > nvidia-drivers-loader.sh
 #!/bin/bash
 cd "$(dirname $0)/drivers"
@@ -457,7 +458,7 @@ Conflicts=shutdown.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash ${PWD}/nvidia-drivers-loader.sh
+ExecStart=/bin/bash -c '(for i in \$(seq 120) ; do  [ -f ${PWD}/nvidia-drivers-loader.sh ] && break; sleep .5; done; bash ${PWD}/nvidia-drivers-loader.sh)&'
 RemainAfterExit=yes
 Environment="PATH=/usr/sbin:/sbin:/usr/bin:/bin"
 
@@ -465,9 +466,6 @@ Environment="PATH=/usr/sbin:/sbin:/usr/bin:/bin"
 WantedBy=sysinit.target
 EOF
 
-  systemctl enable nvidia-drivers-loader.service
-  # try to insmod the drivers anyway, ignore any error
-  bash ./nvidia-drivers-loader.sh 2>/dev/null || true
 }
 
 
@@ -483,6 +481,9 @@ pre_run()
 post_run()
 {
   install_drivers_loader_service
+  systemctl enable nvidia-drivers-loader.service
+  # try to insmod the drivers anyway, ignore any error
+  bash ./nvidia-drivers-loader.sh 2>/dev/null || true
 }
 
 run_installer()
@@ -565,6 +566,7 @@ fix()
 {
   echo "Fix..."
   # fix binary arguments
+  (
   cd ${NVIDIA_INSTALL_DIR}/bin
   for f in nvidia-*; do
     if [ -f "wrapped_$f" ]; then
@@ -573,9 +575,11 @@ fix()
       chmod +x "$f"
     fi
   done
+  )
 
   echo "fix nvidia-drivers-loader service"
-  sed -i 's/Before=local-fs.*/Before=sysinit.target\nAfter=systemd-modules-load.service/' /etc/systemd/system/nvidia-drivers-loader.service
+  install_drivers_loader_service
+  systemctl daemon-reload
   echo "Fix... DONE"
 }
 
