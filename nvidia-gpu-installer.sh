@@ -84,12 +84,12 @@ download_nvidia_installer()
 
   url="${1:-$NVIDIA_DRIVER_DOWNLOAD_URL}"
   savefile="${2:-$NVIDIA_INSTALLER_RUNFILE}"
-  # TODO: verify installer file integrity
-  if [ ! -f "${savefile}" ]; then
+  if [ ! -f "${savefile}" ] || ! sh "${savefile}" --check >/dev/null 2>&1; then
     if [ -z "$url" ]; then
       echo "Can't found the downloadable url, you need to specify the NVIDIA_DRIVER_DOWNLOAD_URL"
       usage 1
     fi
+    echo "${savefile} does not exist or broken"
     echo "Downloading Nvidia installer..."
     curl -L -S -f "${url}" -o "${savefile}" || return 1
     echo "Downloading Nvidia installer... DONE."
@@ -118,12 +118,13 @@ uninstall_drivers()
     # don't need to uninstall!
     return 0
   fi
+  echo "Uninstalling nvidia kernel drivers..."
   #
   # TODO: need to help uninstall the driver if not installed by this method?
   # TODO: found a way to figure out installed by this method
   version=$(modinfo nvidia 2>/dev/null| awk '/^version/{print $2}')
   if [ -z "$version" ]; then
-    echo "Assume it's installed by this script"
+    echo "Can't find the nvidia version, so guess it's installed by this script"
     unload_drivers && return 0
     # this error message is from nvidia office installer
     echo "ERROR: An NVIDIA kernel module 'nvidia' appears to already be loaded in your kernel.  This may be because it is in use (for example, by an X server, a CUDA program, or the NVIDIA Persistence Daemon), but this may also happen if your"
@@ -541,10 +542,8 @@ run_installer()
 
 post_check()
 {
-  echo "Configuring cached driver installation..."
+  echo "checking driver installation..."
   $NVIDIA_INSTALL_DIR/bin/nvidia-smi
-  echo "Configuring cached driver installation... DONE"
-  return 0
 }
 
 install()
