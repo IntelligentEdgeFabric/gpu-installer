@@ -44,6 +44,12 @@ NVIDIA_DRIVER_VERSION=396.44 NVIDIA_DRIVER_DOWNLOAD_URL=http://cn.download.nvidi
 export http_proxy=http://10.90.2.2:808
 export https_proxy=http://10.90.2.2:808
 bash nvidia-gpu-installer.sh install
+
+# OR: default if the installing version and the installed version are the same, we don't run the nvidia office installer. To run the nvidia office installer anyway
+bash nvidia-gpu-installer.sh install --no-cache-check
+
+# OR: default we use the last failed installer container, to disable it
+bash nvidia-gpu-installer.sh install --no-cache-container
 ```
 
 
