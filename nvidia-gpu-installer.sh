@@ -65,7 +65,7 @@ parse_args()
 
 _download_url_ok()
 {
-  curl --silent --head "$1" | awk 'NR==1&&/^HTTP/{a=$2<400}END{exit(1-a)}'
+  curl -L --silent --head "$1" | awk '/^HTTP/{a=$2<400}END{exit(1-a)}'
 }
 
 get_download_url()
@@ -231,7 +231,7 @@ install_devel_centos()
             exit 1
           fi
       fi
-   else
+   elif [ ! -d "$kernel_dir" ] ; then
       mkdir -p /usr/src/kernels
       echo "symbolic link $kernel_dir to ${ROOT_MOUNT_DIR}$kernel_dir"
       ln -s ${ROOT_MOUNT_DIR}$kernel_dir $kernel_dir
