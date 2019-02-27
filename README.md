@@ -14,7 +14,7 @@
 
 ### 条件
 1. 已插入nvidia卡(代码通过lspci检测）
-2. docker服务已安装并启动（参考[centos](https://docs.docker.com/install/linux/docker-ce/centos/)/[ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu/) 安装docker)，并且能联网拉取镜像(代理环境下可以参考[这里配置docker](https://docs.docker.com/config/daemon/systemd/#httphttps-proxy))
+2. docker服务已安装并启动（参考[centos](https://docs.docker.com/install/linux/docker-ce/centos/)/[ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu/) 安装docker, [docker安装脚本](helper/docker-installer.sh)，并且能联网拉取镜像(代理环境下可以参考[这里配置docker](https://docs.docker.com/config/daemon/systemd/#httphttps-proxy))
 3. 目前支持centos 7.X 和ubuntu 16.04+
 4. 网络已通
 
@@ -92,4 +92,4 @@ systemctl status nvidia-drivers-loader
 通过此脚本安装可能会使图形界面不可用，Ubuntu/Centos某些情况可能出现，但是还不知具体冲突原因。
 如果遇到此问题，请尝试以下方法：
 1. 查看并安装[GPU卡对应得nvidia官方最新的驱动版本](https://www.nvidia.cn/Download/index.aspx?lang=cn)
-2. Ubuntu下可以重装图形界面，可以参考这个[链接](https://www.computersnyou.com/4945/re-install-xorg-xserver-completely-ubuntu/)
+2. Ubuntu下可以重装图形界面，可以参考[这个脚本](helper/ubuntu-reinstall-x11.sh)
