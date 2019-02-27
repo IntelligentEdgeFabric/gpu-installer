@@ -13,8 +13,56 @@ mkdir -p "$NVIDIA_INSTALL_DIR"
 cd "$NVIDIA_INSTALL_DIR"
 
 
-# TODO: find the most proper nvidia-driver version
-NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
+get_latest_nvidia_driver()
+{
+  # find the latest nvidia driver version from the nvidia offical web page
+
+  [ -z "${NVIDIA_DRIVER_VERSION:-}" ] || return 0
+  echo "You don't specify the NVIDIA_DRIVER_VERSION, try to find the latest version"
+
+  for _loop in 0 1; do
+    product_name=$(lspci | awk '
+        # found the nvidia product
+        # example output: 00:0c.0 3D controller: NVIDIA Corporation GP104GL [Tesla P4]
+        /NVIDIA/&&!first++&&sub(/.*\[/, ""){
+           sub(/\].*/, "")
+          print $0
+          exit 0
+        }
+      ')
+
+    if [ -z "$product_name" ]; then
+      echo "Update the PCI ID list"
+      update-pciids -q
+      continue
+    fi
+
+    # these values are from the source of https://www.nvidia.cn/Download/index.aspx?lang=cn
+    # current only support Tesla product type
+    product_map="822 Tesla P100 827 Tesla P40 858 Tesla P6 831 Tesla P4 @
+                 883 Tesla T4 @
+                 857 Tesla V100 @
+                 762 Tesla K80 856 Tesla K520 713 Tesla K40c 714 Tesla K40m 715 Tesla K40s 716 Tesla K40st 777 Tesla K40t 670 Tesla K20Tesla Xm 668 Tesla K20m 684 Tesla K20s 667 Tesla K20c 652 Tesla K10 760 Tesla K8 @"
+    product_value=$(echo "$product_map" | awk "sub(/$product_name .*/,e){print\$NF}")
+    echo "Found the nvidia driver product name '$product_name', product value is $product_value"
+
+    os_value=12 # Linux 64-bit
+    driver_result_url=$(curl -s "https://www.nvidia.com/Download/processDriver.aspx?pfid=$product_value&rpf=1&osid=$os_value" | sed s/http:/https:/)
+    NVIDIA_DRIVER_VERSION=$(curl -s "$driver_result_url" | awk '
+        { gsub(/\r/,"") }
+        start && $1~/^[0-9]+(\.[0-9]*)?$/{
+          print $1;exit
+        }
+        $1=="Version:"{start=1}
+      ')
+
+    [ -n "$NVIDIA_DRIVER_VERSION" ] && echo "Found the latest nvidia driver $NVIDIA_DRIVER_VERSION"
+    break
+  done
+
+  # fall back the old default version
+  NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
+}
 
 
 get_release()
@@ -111,7 +159,7 @@ check_drivers_exist()
 insert_drivers()
 {
   modprobe ipmi_devintf 2>/dev/null || true
-  for f in nvidia.ko nvidia-uvm.ko; do 
+  for f in nvidia.ko nvidia-uvm.ko; do
     f=${NVIDIA_INSTALL_DIR}/drivers/$f
     [ -f "$f" ] && insmod $f
   done
@@ -269,7 +317,6 @@ set -o pipefail
 set -u
 
 set -x
-NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
 NVIDIA_INSTALL_DIR_HOST="${NVIDIA_INSTALL_DIR_HOST:-/var/IEF/nvidia}"
 NVIDIA_INSTALL_DIR_CONTAINER="${NVIDIA_INSTALL_DIR_CONTAINER:-/var/IEF/nvidia}"
 ROOT_MOUNT_DIR="${ROOT_MOUNT_DIR:-/root}"
@@ -582,6 +629,7 @@ install()
   get_release
 
   if pre_check; then
+    get_latest_nvidia_driver
 
     [ "$no_cache_check" = y ] || { check_cached_version && return 0; }
 
