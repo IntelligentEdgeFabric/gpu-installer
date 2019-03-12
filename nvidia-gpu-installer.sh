@@ -6,12 +6,63 @@ set -u
 
 NVIDIA_INSTALL_DIR=/var/IEF/nvidia
 KERNEL_VERSION=$(uname -r)
+PATH="${NVIDIA_INSTALL_DIR}/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/sbin:/bin:$PATH"
+CACHE_FILE="${NVIDIA_INSTALL_DIR}/.cache"
 
 mkdir -p "$NVIDIA_INSTALL_DIR"
 cd "$NVIDIA_INSTALL_DIR"
 
-# TODO: find the most proper nvidia-driver version
-NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
+
+get_latest_nvidia_driver()
+{
+  # find the latest nvidia driver version from the nvidia offical web page
+
+  [ -z "${NVIDIA_DRIVER_VERSION:-}" ] || return 0
+  echo "You don't specify the NVIDIA_DRIVER_VERSION, try to find the latest version"
+
+  for _loop in 0 1; do
+    product_name=$(lspci | awk '
+        # found the nvidia product
+        # example output: 00:0c.0 3D controller: NVIDIA Corporation GP104GL [Tesla P4]
+        /NVIDIA/&&!first++&&sub(/.*\[/, ""){
+           sub(/\].*/, "")
+          print $0
+          exit 0
+        }
+      ')
+
+    if [ -z "$product_name" ]; then
+      echo "Update the PCI ID list"
+      update-pciids -q
+      continue
+    fi
+
+    # these values are from the source of https://www.nvidia.cn/Download/index.aspx?lang=cn
+    # current only support Tesla product type
+    product_map="822 Tesla P100 827 Tesla P40 858 Tesla P6 831 Tesla P4 @
+                 883 Tesla T4 @
+                 857 Tesla V100 @
+                 762 Tesla K80 856 Tesla K520 713 Tesla K40c 714 Tesla K40m 715 Tesla K40s 716 Tesla K40st 777 Tesla K40t 670 Tesla K20Tesla Xm 668 Tesla K20m 684 Tesla K20s 667 Tesla K20c 652 Tesla K10 760 Tesla K8 @"
+    product_value=$(echo "$product_map" | awk "sub(/$product_name .*/,e){print\$NF}")
+    echo "Found the nvidia driver product name '$product_name', product value is $product_value"
+
+    os_value=12 # Linux 64-bit
+    driver_result_url=$(curl -s "https://www.nvidia.com/Download/processDriver.aspx?pfid=$product_value&rpf=1&osid=$os_value" | sed s/http:/https:/)
+    NVIDIA_DRIVER_VERSION=$(curl -s "$driver_result_url" | awk '
+        { gsub(/\r/,"") }
+        start && $1~/^[0-9]+(\.[0-9]*)?$/{
+          print $1;exit
+        }
+        $1=="Version:"{start=1}
+      ')
+
+    [ -n "$NVIDIA_DRIVER_VERSION" ] && echo "Found the latest nvidia driver $NVIDIA_DRIVER_VERSION"
+    break
+  done
+
+  # fall back the old default version
+  NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
+}
 
 
 get_release()
@@ -39,10 +90,6 @@ pre_check()
     }
   fi
 
-  if check_drivers_exist; then
-    uninstall_drivers || return 1
-  fi
-
   if ! docker ps 2>/dev/null >&2; then
     echo "docker are not installed or stopped! Please install or start docker first!"
     return 1
@@ -51,17 +98,22 @@ pre_check()
 
 parse_args()
 {
-  opt=${1:-}
   force=
-  case "$opt" in
-    -y|--yes) force=y;;
-    *) :;;
-  esac
+  no_cache_check=
+  no_cache_container=
+  for opt ; do
+    case "$opt" in
+      -y|--yes) force=y;;
+      --no-cache-check) no_cache_check=y;;
+      --no-cache-container) no_cache_container=y;;
+      *) :;;
+    esac
+  done
 }
 
 _download_url_ok()
 {
-  curl --silent --head "$1" | awk 'NR==1&&/^HTTP/{a=$2<400}END{exit(1-a)}'
+  curl -L --silent --head "$1" | awk '/^HTTP/{a=$2<400}END{exit(1-a)}'
 }
 
 get_download_url()
@@ -84,12 +136,12 @@ download_nvidia_installer()
 
   url="${1:-$NVIDIA_DRIVER_DOWNLOAD_URL}"
   savefile="${2:-$NVIDIA_INSTALLER_RUNFILE}"
-  # TODO: verify installer file integrity
-  if [ ! -f "${savefile}" ]; then
+  if [ ! -f "${savefile}" ] || ! sh "${savefile}" --check >/dev/null 2>&1; then
     if [ -z "$url" ]; then
       echo "Can't found the downloadable url, you need to specify the NVIDIA_DRIVER_DOWNLOAD_URL"
       usage 1
     fi
+    echo "${savefile} does not exist or broken"
     echo "Downloading Nvidia installer..."
     curl -L -S -f "${url}" -o "${savefile}" || return 1
     echo "Downloading Nvidia installer... DONE."
@@ -102,6 +154,15 @@ check_drivers_exist()
 {
   [ -n "${__DEBUG__:-}" ] && return 0
   lsmod | grep -qw nvidia
+}
+
+insert_drivers()
+{
+  modprobe ipmi_devintf 2>/dev/null || true
+  for f in nvidia.ko nvidia-uvm.ko; do
+    f=${NVIDIA_INSTALL_DIR}/drivers/$f
+    [ -f "$f" ] && insmod $f
+  done
 }
 
 unload_drivers()
@@ -118,12 +179,13 @@ uninstall_drivers()
     # don't need to uninstall!
     return 0
   fi
+  echo "Uninstalling nvidia kernel drivers..."
   #
   # TODO: need to help uninstall the driver if not installed by this method?
   # TODO: found a way to figure out installed by this method
   version=$(modinfo nvidia 2>/dev/null| awk '/^version/{print $2}')
   if [ -z "$version" ]; then
-    echo "Assume it's installed by this script"
+    echo "Can't find the nvidia version, so guess it's installed by this script"
     unload_drivers && return 0
     # this error message is from nvidia office installer
     echo "ERROR: An NVIDIA kernel module 'nvidia' appears to already be loaded in your kernel.  This may be because it is in use (for example, by an X server, a CUDA program, or the NVIDIA Persistence Daemon), but this may also happen if your"
@@ -217,7 +279,7 @@ install_devel_centos()
             exit 1
           fi
       fi
-   else
+   elif [ ! -d "$kernel_dir" ] ; then
       mkdir -p /usr/src/kernels
       echo "symbolic link $kernel_dir to ${ROOT_MOUNT_DIR}$kernel_dir"
       ln -s ${ROOT_MOUNT_DIR}$kernel_dir $kernel_dir
@@ -255,43 +317,12 @@ set -o pipefail
 set -u
 
 set -x
-NVIDIA_DRIVER_VERSION="${NVIDIA_DRIVER_VERSION:-384.111}"
 NVIDIA_INSTALL_DIR_HOST="${NVIDIA_INSTALL_DIR_HOST:-/var/IEF/nvidia}"
 NVIDIA_INSTALL_DIR_CONTAINER="${NVIDIA_INSTALL_DIR_CONTAINER:-/var/IEF/nvidia}"
 ROOT_MOUNT_DIR="${ROOT_MOUNT_DIR:-/root}"
-CACHE_FILE="${NVIDIA_INSTALL_DIR_CONTAINER}/.cache"
 KERNEL_VERSION="$(uname -r)"
 set +x
 
-check_cached_version() {
-  echo "Checking cached version"
-  if [[ ! -f "${CACHE_FILE}" ]]; then
-    echo "Cache file ${CACHE_FILE} not found."
-    return 1
-  fi
-
-  # Source the cache file and check if the cached driver matches
-  # currently running kernel version and requested driver versions.
-  . "${CACHE_FILE}"
-  if [[ "${KERNEL_VERSION}" == "${CACHE_KERNEL_VERSION}" ]]; then
-    if [[ "${NVIDIA_DRIVER_VERSION}" == "${CACHE_NVIDIA_DRIVER_VERSION}" ]]; then
-      echo "Found existing driver installation for kernel version ${KERNEL_VERSION} and driver version ${NVIDIA_DRIVER_VERSION}."
-      return 0
-    fi
-  fi
-  echo "Cache file ${CACHE_FILE} found but existing versions didn't match."
-  return 1
-}
-
-update_cached_version() {
-  cat >"${CACHE_FILE}"<<__EOF__
-CACHE_KERNEL_VERSION=${KERNEL_VERSION}
-CACHE_NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION}
-__EOF__
-
-  echo "Updated cached version as:"
-  cat "${CACHE_FILE}"
-}
 
 update_container_ld_cache() {
   echo "Updating container's ld cache..."
@@ -388,13 +419,10 @@ run_nvidia_installer() {
 }
 
 main() {
-  if ! check_cached_version; then
-    install_devel
-    configure_nvidia_installation_dirs
-    run_nvidia_installer
-    copy_binaries
-    update_cached_version
-  fi
+  install_devel
+  configure_nvidia_installation_dirs
+  run_nvidia_installer
+  copy_binaries
 }
 
 main "$@"
@@ -433,6 +461,7 @@ install_drivers_loader_service()
   cat <<-"EOF" > nvidia-drivers-loader.sh
 #!/bin/bash
 cd "$(dirname $0)/drivers"
+# Note: this also load ipmi_msghandler
 modprobe ipmi_devintf 2>/dev/null || true
 
 if insmod nvidia.ko; then
@@ -505,9 +534,12 @@ run_installer()
       # found already existing container id which also has the same version
       # meanwhile try to clean the orphaned container
       docker ps -a | awk -v image=$image_name 'NF=$2==image' | while read _id; do
-         docker inspect "$_id" | grep -q "NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION}" && echo $_id && break
+
+         if [ "$no_cache_container" != y ]; then
+           docker inspect "$_id" | grep -q "NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION}" && echo $_id && break
+         fi
          # try to rm the orphaned container
-         docker rm $_id >/dev/null 2>&1|| true
+         docker rm --force $_id >&2|| true
       done
     )
 
@@ -539,12 +571,57 @@ run_installer()
 
 }
 
+check_cached_version() {
+  echo "Checking cached version"
+  if [[ ! -f "${CACHE_FILE}" ]]; then
+    echo "Cache file ${CACHE_FILE} not found."
+    return 1
+  fi
+
+  # Source the cache file and check if the cached driver matches
+  # currently running kernel version and requested driver versions.
+  . "${CACHE_FILE}"
+  if [[ "${KERNEL_VERSION}" == "${CACHE_KERNEL_VERSION}" ]]; then
+    if [[ "${NVIDIA_DRIVER_VERSION}" == "${CACHE_NVIDIA_DRIVER_VERSION}" ]]; then
+
+      echo "Try to load nvidia kernel modules if not inserted"
+      if ! check_drivers_exist; then
+        insert_drivers
+      fi
+
+      if post_check; then
+        echo "Found existing driver installation for kernel version ${KERNEL_VERSION} and driver version ${NVIDIA_DRIVER_VERSION}."
+        echo "You can use '--no-cache-check' option to disable this cache check."
+        return 0
+
+      fi
+    fi
+  fi
+  echo "Cache file ${CACHE_FILE} found but existing versions didn't match."
+  return 1
+}
+
+reset_cached_version() {
+  cat >"${CACHE_FILE}"<<__EOF__
+CACHE_KERNEL_VERSION=
+CACHE_NVIDIA_DRIVER_VERSION=
+__EOF__
+}
+
+update_cached_version() {
+  cat >"${CACHE_FILE}"<<__EOF__
+CACHE_KERNEL_VERSION=${KERNEL_VERSION}
+CACHE_NVIDIA_DRIVER_VERSION=${NVIDIA_DRIVER_VERSION}
+__EOF__
+
+  echo "Updated cached version as:"
+  cat "${CACHE_FILE}"
+}
+
 post_check()
 {
-  echo "Configuring cached driver installation..."
-  $NVIDIA_INSTALL_DIR/bin/nvidia-smi
-  echo "Configuring cached driver installation... DONE"
-  return 0
+  echo "checking driver installation..."
+  nvidia-smi
 }
 
 install()
@@ -552,8 +629,18 @@ install()
   get_release
 
   if pre_check; then
+    get_latest_nvidia_driver
+
+    [ "$no_cache_check" = y ] || { check_cached_version && return 0; }
+
+    if check_drivers_exist; then
+      uninstall_drivers || return 1
+    fi
+
+    # reset_cached_version
     if run_installer && post_check; then
-      echo "Nvidia $NVIDIA_DRIVER_VERSION is installed at ${NVIDIA_INSTALL_DIR}, successfully"
+      update_cached_version
+      echo "Nvidia $NVIDIA_DRIVER_VERSION is installed at ${NVIDIA_INSTALL_DIR} successfully"
       echo "nvidia-smi is located in ${NVIDIA_INSTALL_DIR}/bin, you can add ${NVIDIA_INSTALL_DIR}/bin into PATH in your shell profile!"
     else
       echo "Failed to install nvidia $NVIDIA_DRIVER_VERSION!"
@@ -592,7 +679,10 @@ usage()
   echo "   http_proxy, https_proxy, no_proxy => proxy"
   echo
   echo "Commands:"
-  echo "   install [-y|--yes]: install nvidia drivers"
+  echo "   install: install nvidia drivers"
+  echo "         [-y|--yes] no prompt"
+  echo "         [--no-cache-check] we cache the last successful version, here no check"
+  echo "         [--no-cache-container] default we use the last failed installer container, here no use"
   echo "   clean [-y|--yes]: remove all installed drivers and scripts"
   echo "   fix: fix all installed scripts"
   echo "   -h|help: remove all installed drivers and scripts"
