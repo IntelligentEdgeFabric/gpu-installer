@@ -365,6 +365,12 @@ configure_nvidia_installation_dirs() {
   mkdir -p /usr/lib/x86_64-linux-gnu
   # mount -t overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=lib64,workdir=lib64-workdir none /usr/lib/x86_64-linux-gnu
   cp -R  /usr/lib/x86_64-linux-gnu/. /lib/
+  # the library path of ubuntu 19.04 is different from ubuntu 16.04 and 18.04
+  # relink the softlink of ld-linux-x86-64.so.2 in ubuntu 19.04 before mount
+  if [ $(grep -e "^ID=" /etc/os-release | awk -F '=' '{print $2}') == 'ubuntu' ] && [ $(grep -e "^VERSION_ID=" /etc/os-release | awk -F '=' '{gsub(/"/,"",$2);print $2}') == '19.04' ]; then
+    ld_path=/lib64/ld-linux-x86-64.so.2
+    [ -h $ld_path ] && real_ld=$(readlink -e $ld_path) && ln -sf ${real_ld/*x86_64-linux-gnu/\/lib} $ld_path
+  fi
   mount --bind lib64 /usr/lib/x86_64-linux-gnu
 
   # nvidia-installer does not provide an option to configure the
